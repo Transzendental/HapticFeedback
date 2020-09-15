@@ -4,20 +4,24 @@ using UnityEngine;
 public class GameCoordinator : MonoBehaviour
 {
     public Bolt[] TrackedBolts = new Bolt[4];
-    // Time which is considered good
-    public int ReferenceTime = 300;
 
     // goal configuarion - inital configuration
     private readonly float[][] Scenario1 = { new[] { 0.8f, 0.8f, 0.8f, 0.8f }, new[] { 0.3f, 0.3f, 0.3f, 0.3f } };
-    private readonly float[][] Scenario2 = { new[] { 0.2f, 0.2f, 0.1f, 0.9f }, new[] { 0.5f, 0.6f, 0.8f, 0.5f } };
+    private readonly float[][] Scenario2 = { new[] { 0.8f, 0.2f, 0.1f, 0.9f }, new[] { 0.5f, 0.6f, 0.8f, 0.5f } };
 
-    private int choosenScenraio;
-    private float elapsedTime;
-    
+    private int choosenScenraio = 1;
+    private int boltStateChangedCount = 0;
+    private int evaluateCount = 0;
+
     public void StartScenarion(int choice)
     {
         choosenScenraio = choice;
-        elapsedTime = 0;
+        var i = 0;
+        foreach (var bolt in TrackedBolts)
+        {
+            bolt.OnBoltStateChanged += () => { boltStateChangedCount++; };
+            bolt.Tension = choosenScenraio == 1 ? Scenario1[1][i++] : Scenario1[2][i++];
+        }
     }
 
     public void Evaluate()
@@ -25,8 +29,11 @@ public class GameCoordinator : MonoBehaviour
         var scenario = GetScenario();
         for (var i = 0; i < TrackedBolts.Length; i++)
         {
-            Debug.Log($"Delta tension on screw {i + 1} is {TrackedBolts[i].Tension - scenario[i]}");
+            var error = TrackedBolts[i].Tension - scenario[i];
+            Debug.Log($"Delta tension on screw {i + 1} is {error}");
+            TrackedBolts[i].Label.text = error.ToString();
         }
+        evaluateCount++;
     }
 
     public void Finish()
@@ -35,16 +42,13 @@ public class GameCoordinator : MonoBehaviour
         var nutScore = 0d;
         for (var i = 0; i < TrackedBolts.Length; i++)
         {
-            nutScore += ScoreTension(TrackedBolts[i].Tension, scenario[i]);
+            nutScore += Math.Abs(TrackedBolts[i].Tension - scenario[i]) * 10;
         }
 
-        var score = nutScore + elapsedTime / ReferenceTime;
-        Debug.Log("You finished this scenario with an score of: " + score);
-    }
+        var changedScore = boltStateChangedCount / 10f;
+        var evalauteScore = evaluateCount / 5f;
 
-    private void Update()
-    {
-        elapsedTime += Time.deltaTime;
+        Debug.Log($"You finished this scenario with following stats: Nut: {nutScore} Changed: {changedScore} Evaluate: {evalauteScore} Resulting in a score of {nutScore + changedScore + evalauteScore} ");
     }
 
     private float[] GetScenario()
@@ -58,14 +62,5 @@ public class GameCoordinator : MonoBehaviour
             default:
                 throw new ArgumentException();
         }
-
     }
-
-    /// <summary>
-    /// Evaluation function: |goal - is|³. Allowing small  deviations and punishing larger. Is between 0 and 1.
-    /// </summary>
-    /// <param name="actual"></param>
-    /// <param name="goal"></param>
-    /// <returns></returns>
-    private double ScoreTension(float actual, float goal) => Math.Pow(Math.Abs(actual - goal), 3);
 }

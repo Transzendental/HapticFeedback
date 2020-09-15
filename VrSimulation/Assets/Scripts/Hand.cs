@@ -7,12 +7,14 @@ using Valve.VR;
 public class Hand : MonoBehaviour
 {
     public SteamVR_Action_Boolean GrabAction;
-    public SteamVR_Action_Boolean HoldAction;
-    [HideInInspector]
-    public bool HoldFlag;
+    public SteamVR_Action_Boolean TeleportAction;
+
+    public bool HoldingFlag { get; private set; }
+    public bool PointingFlag { get; private set; }
 
     private SteamVR_Behaviour_Pose Pose;
     private FixedJoint Joint;
+    public GameObject Pointer;
 
     private List<Interactable> PossibleInteractables = new List<Interactable>();
     private Interactable CurrentInteractable;
@@ -21,6 +23,7 @@ public class Hand : MonoBehaviour
     {
         Pose = GetComponent<SteamVR_Behaviour_Pose>();
         Joint = GetComponent<FixedJoint>();
+        Pointer = transform.Find("Pointer")?.gameObject;
     }
 
     private void Update()
@@ -36,18 +39,22 @@ public class Hand : MonoBehaviour
             Drop();
         }
 
-        // Input holding
-        if (CurrentInteractable)
+        if (TeleportAction.GetStateDown(Pose.inputSource))
         {
-            if (HoldAction.GetStateDown(Pose.inputSource))
-            {
-                HoldFlag = true;
-            }
 
-            if (HoldAction.GetStateUp(Pose.inputSource))
+            if (CurrentInteractable != null)
             {
-                HoldFlag = false;
+                HoldingFlag = true;
             }
+            else
+            {
+                SetPointerActive(true);
+            }
+        }
+
+        if (TeleportAction.GetStateUp(Pose.inputSource))
+        {
+            HoldingFlag = false;
         }
     }
 
@@ -68,18 +75,16 @@ public class Hand : MonoBehaviour
     private void Pickup()
     {
         var interactable = PossibleInteractables.FirstOrDefault();
-        if (interactable is null) {
-            // Use Pointer
-
-        }
-        else
+        if (!(interactable is null))
         {
             // Pick up interactable
             Joint.connectedBody = interactable.GetComponent<Rigidbody>();
             interactable.ActiveHand = this;
             CurrentInteractable = interactable;
+
+            SetPointerActive(false);
         }
-        
+
     }
 
     private void Drop()
@@ -94,5 +99,22 @@ public class Hand : MonoBehaviour
         CurrentInteractable.ActiveHand = null;
         Joint.connectedBody = null;
         CurrentInteractable = null;
+
+        SetPointerActive(true);
+    }
+
+    private void SetPointerActive(bool active = true)
+    {
+        if (active && Pointer == null)
+        {
+            Pointer = GameObject.Find("Pointer");
+            Pointer.transform.parent.GetComponent<Hand>().Pointer = null;
+            Pointer.transform.SetParent(transform);
+            Pointer.transform.localPosition = Vector3.zero;
+            Pointer.transform.localRotation = Quaternion.identity;
+        }
+
+        Pointer.SetActive(active);
+        PointingFlag = true;
     }
 }

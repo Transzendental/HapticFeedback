@@ -6,24 +6,22 @@ public class VrInputModule : BaseInputModule
 {
     public SteamVR_Action_Boolean ClickAction;
     public SteamVR_Input_Sources TargetSource;
-    public Transform Pointer;
+    public Camera Camera;
 
     private PointerEventData PointerEventData;
     private GameObject CurrentObject;
-    private Camera Camera;
 
     protected override void Awake()
     {
         base.Awake();
 
         PointerEventData = new PointerEventData(eventSystem);
-        Camera = Pointer.GetComponent<Camera>();
     }
 
     public override void Process()
     {
         PointerEventData.Reset();
-        PointerEventData.position = new Vector2(Camera.pixelWidth / 2, Camera.pixelHeight);
+        PointerEventData.position = new Vector2(Camera.pixelWidth / 2, Camera.pixelHeight / 2);
 
         eventSystem.RaycastAll(PointerEventData, m_RaycastResultCache);
         PointerEventData.pointerCurrentRaycast = FindFirstRaycast(m_RaycastResultCache);

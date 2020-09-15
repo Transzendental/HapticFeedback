@@ -11,7 +11,7 @@ public class Interactable : MonoBehaviour
         {
             if (value == null)
             {
-                OnInteractableDropped?.Invoke(_activeHand);
+                DisconnectBolt();
             }
             _activeHand = value;
         }
@@ -19,10 +19,6 @@ public class Interactable : MonoBehaviour
 
     private Quaternion PreviosRotation;
     private Bolt ConnectedBolt;
-
-    public event InteractableDroppedHandler OnInteractableDropped;
-
-    public delegate void InteractableDroppedHandler(Hand hand);
 
     public void SnapToBolt(Bolt bolt)
     {
@@ -32,11 +28,16 @@ public class Interactable : MonoBehaviour
         PreviosRotation = ActiveHand.transform.rotation;
     }
 
-    private void Awake()
+    private void DisconnectBolt()
     {
-        OnInteractableDropped += DisconnectBolt;
-        InvokeRepeating("LogRotation", 2.0f, 0.5f);
+        if (!ConnectedBolt)
+            return;
+
+        GetComponent<Rigidbody>().constraints = RigidbodyConstraints.None;
+        ConnectedBolt.InteractableDisconected();
+        ConnectedBolt = null;
     }
+
 
     private void Update()
     {
@@ -45,16 +46,15 @@ public class Interactable : MonoBehaviour
             // Break snap or set position to that of connected bolt
             if (Vector3.Distance(ConnectedBolt.transform.position, ActiveHand.transform.position) > ConnectedBolt.BreakDistance)
             {
-                DisconnectBolt(ActiveHand);
+                DisconnectBolt();
             }
             else
             {
                 var tip = transform.GetChild(2);
                 transform.position = ConnectedBolt.transform.position + transform.position - tip.position;
-                // transform.LookAt(ConnectedBolt.transform, transform.up);
 
                 // Apply rotation to connected bolt
-                if (ActiveHand.HoldFlag)
+                if (ActiveHand.HoldingFlag)
                 {
                     var deltaAngleZ = PreviosRotation.eulerAngles.z - ActiveHand.transform.rotation.eulerAngles.z;
                     if (deltaAngleZ >= 180)
@@ -68,15 +68,7 @@ public class Interactable : MonoBehaviour
                     ConnectedBolt.IncreaseTension(deltaAngleZ);
                 }
             }
+            PreviosRotation = ActiveHand.transform.rotation;
         }
-
-        PreviosRotation = ActiveHand.transform.rotation;
-    }
-
-    private void DisconnectBolt(Hand hand)
-    {
-        GetComponent<Rigidbody>().constraints = RigidbodyConstraints.None;
-        ConnectedBolt = null;
     }
 }
-

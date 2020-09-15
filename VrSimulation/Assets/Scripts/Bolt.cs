@@ -1,14 +1,23 @@
-﻿using UnityEngine;
+﻿using System;
+using UnityEngine;
+using UnityEngine.UI;
 
 public class Bolt : MonoBehaviour
 {
     public float Tension;
     public float BreakDistance;
     public int MaxTurn = 3;
+    public Text Label;
+    public bool DisplayColor = true;
+
+    public event BoltStateChangedHandler OnBoltStateChanged;
+
+    public delegate void BoltStateChangedHandler();
 
     private FixedJoint Joint;
     private Gradient Gradient;
     private Material Material;
+    private bool TensionChanged = false;
 
     private void Awake()
     {
@@ -40,13 +49,15 @@ public class Bolt : MonoBehaviour
     private void Update()
     {
         // Update color of bold depending on its tension
-        Material.color = Gradient.Evaluate(Tension);
+        if (DisplayColor)
+            Material.color = Gradient.Evaluate(Tension);
     }
 
     public void IncreaseTension(float increase)
     {
-        transform.Rotate(0, increase, 0, Space.Self);
+        transform.Rotate(0, 0, increase, Space.Self);
         Tension += increase / (360 * MaxTurn);
+        TensionChanged = true;
     }
 
     private void OnTriggerEnter(Collider other)
@@ -56,5 +67,12 @@ public class Bolt : MonoBehaviour
             return;
 
         interactable.SnapToBolt(this);
+    }
+
+    internal void InteractableDisconected()
+    {
+        if (TensionChanged)
+            OnBoltStateChanged?.Invoke();
+        TensionChanged = false;
     }
 }
